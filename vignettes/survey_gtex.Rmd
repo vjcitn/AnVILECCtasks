@@ -1,0 +1,226 @@
+---
+title: "AnVILECCtasks 1 -- surveying GTEx in AnVIL"
+shorttitle: "Surveying GTEx in AnVIL"
+author: "Vincent J. Carey, stvjc at channing.harvard.edu"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{AnVILECCtasks 1 -- surveying GTEx in AnVIL}
+  %\VignetteEncoding{UTF-8}
+output:
+  BiocStyle::html_document:
+    highlight: pygments
+    number_sections: yes
+    theme: united
+    toc: yes
+---
+
+# Overview
+
+Our objective in this vignette is to illustrate the use of Bioconductor's MultiAssayExperiment
+for representing and querying a large AnVIL resource: GTEx.  The steps are
+
+- initialize an AnVIL/Terra workspace
+- use gen3.theanvil.io to produce a PFB extract, export to Terra using the UI
+    - in this example, extract records with ancestry "Black or African American" or "White"
+- use the Bioconductor AnVIL package and R programming to explore the GTEx data
+
+The curatedAnVILData package is currently private as it includes metadata that
+are controlled-access at this time.  See the workspace description for additional
+details about replicating these computations.
+
+
+## Basic inspection
+
+Load packages.
+
+```{r begin}
+suppressPackageStartupMessages({
+library(AnVIL)
+library(rtracklayer)
+})
+
+```
+
+Get workspace name.
+
+```{r ch3, eval=TRUE}
+avworkspace()
+```
+
+List available tables.
+
+```{r ch4, eval=TRUE}
+ta = avtables()
+ta
+```
+
+Extract the 'sequencing' table.
+
+
+```{r ch2a, eval=TRUE, message=FALSE, results="hide"}
+seqtab = avtable_paged(table="sequencing")
+```
+
+Its dimensions are `r nrow(seqtab)` by `r ncol(seqtab)`.
+
+Data formats in use, and the associated type labels:
+
+
+```{r ch5, eval=TRUE}
+table(seqtab$`pfb:data_type`, seqtab$`pfb:data_format`)
+```
+
+A 'data category' is also recorded.
+
+```{r ch6, eval=TRUE}
+table(seqtab$`pfb:data_category`, seqtab$`pfb:data_format`)
+```
+
+## Demographics and tissue type
+
+```{r ch7, eval=TRUE}
+subj = avtable(table="subject")
+table(unlist(subj$`pfb:ancestry.items`))
+```
+
+```{r ch9, eval=TRUE, message=FALSE, results="hide"}
+if (!exists("samp")) samp = avtable_paged(table="sample") # slow
+table(samp$`pfb:tissue_type`)
+```
+
+Filter to lung samples.
+
+```{r ch11, eval=TRUE}
+library(dplyr)
+lungsamp = samp |> dplyr::filter(`pfb:tissue_type` == "Lung")
+dim(lungsamp)
+```
+
+Features available in this filtered table:
+
+```{r ch12, eval=TRUE}
+names(lungsamp)
+```
+
+What attributes are shared between sample table and sequencing table,
+or sequencing table and subject table?
+
+```{r ch13, eval=TRUE}
+intersect(names(lungsamp), names(seqtab))
+```
+```{r ch13a}
+intersect(names(seqtab), names(subj))
+```
+
+How many identifiers are common to sample, sequencing, and subject tables?  Prior
+to May 2023 (or earlier), `lungsamp$pfb:subject` was a character variable.  Now
+it is a data frame with type and value columns.  So we add some code to
+produce a suitable variable for subject identity.
+
+```{r ch15, eval=TRUE}
+lungsamp$subject_id = lungsamp$`pfb:subject`$entityName
+length(intersect(lungsamp$subject_id, subj$subject_id))
+```
+Similar changes have occurred in seqtab.
+```{r lklklklklk}
+head(seqtab$`pfb:sample`)
+```
+```{r ch16, eval=TRUE}
+seqtab$sample_id = seqtab$`pfb:sample`$entityName
+length(intersect(seqtab$sample_id, samp$`sample_id`))
+```
+
+
+
+Join sample and subject tables.
+
+```{r ch18, eval=TRUE}
+lsasu = left_join(lungsamp, subj, by="subject_id")
+```
+
+This leads to `r nrow(lsasu)` records with `r ncol(lsasu)` fields.
+
+There are `r length(unique(lsasu$subject_id))` unique subject identifiers.
+
+
+Join to the sample-subject table.
+
+```{r ch22, eval=TRUE}
+lsqsasu = right_join(seqtab, lsasu, by="sample_id")
+```
+
+Now there are `r length(unique(lsqsasu$subject_id))` distinct
+subjects available with sequencing data.
+
+
+
+
+```{r ch25, eval=TRUE}
+table(lsqsasu$`pfb:data_format`)
+```
+
+```{r ch26, eval=TRUE}
+lbw = lsqsasu |> dplyr::filter(`pfb:data_format`=="bigWig")
+```
+
+
+```{r ch27, eval=TRUE}
+dim(lbw)
+```
+
+
+```{r ch28, eval=TRUE}
+lbs_drs = lbw %>% select(`pfb:ga4gh_drs_uri`)
+head(lbs_drs,3)
+```
+
+```{r ch29, eval=TRUE}
+lbs_gs = drs_stat(lbs_drs[[1]]) # data.frame unwrapping
+```
+
+
+```{r ch30, eval=TRUE}
+head(lbs_gs,3)[,1:5]
+```
+
+
+```{r ch31, eval=TRUE}
+chk = lbs_gs[1,4][[1]]
+chk
+```
+
+It would be nice to query the BigWig directly.  But the bucket is requester pays, and we may need enhancements to rtracklayer.
+
+
+```{r ch32, eval=TRUE}
+gsutil_cp(chk, Sys.getenv("WORKSPACE_BUCKET"))
+```
+
+
+```{r ch33, eval=TRUE}
+gsutil_ls(Sys.getenv("WORKSPACE_BUCKET"))
+```
+
+
+```{r ch34, eval=TRUE}
+targ = "GTEX-13X6K-1626-SM-7EWCX.Aligned.sortedByCoord.out.patched.md.bigWig"
+if (!file.exists(targ)) gsutil_cp(chk, ".")
+```
+
+
+```{r ch35, eval=TRUE}
+dir()
+```
+
+
+```{r ch36, eval=TRUE}
+library(rtracklayer)
+import(dir(patt="GTEX-")[1])
+```
+
+# Session information
+
+```{r dosess}
+sessionInfo()
+```
