@@ -1,8 +1,7 @@
 Package: AnVILECCtasks
 Date: 2023-05-27
-Title: A collection of AnVIL usage illustrations centered 
-	around interactive work with Bioconductor
-Version: 0.0.0
+Title: A collection of AnVIL usage illustrations centered around interactive work with Bioconductor
+Version: 0.0.2
 Authors@R: 
     c(person(
         "Vincent", "Carey", role = c("aut", "cre"),
@@ -16,7 +15,8 @@ Description: This package illustrates the use of Bioconductor in
 License: Artistic-2.0
 Encoding: UTF-8
 Depends: R (>= 3.6), dplyr
-Suggests: knitr, testthat, BiocHail, scviR, AnVIL
+Suggests: knitr, testthat, BiocHail, scviR, AnVIL, rtracklayer,
+	dplyr, BiocStyle, shiny, GenomicFiles, TnT, BiocParallel
 VignetteBuilder: knitr
 biocViews: Infrastructure
 RoxygenNote: 7.2.3
