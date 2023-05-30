@@ -1,0 +1,138 @@
+getwd()
+setwd("inst/app")
+library(shiny)
+library(AnVILECCtasks)
+dir()
+runApp()
+BiocManager::install("GenomicFiles")
+BiocManager::install(c("TnT", "BiocParallel"))
+runApp()
+ls()
+empfib_GF
+files(empfib_GF)[1]
+empfib_GF
+files(empfib_GF)
+ls()
+msig_emt
+?msig_emt
+ls()
+search()
+library(AnVILECCtasks)
+data(package="AnVILECCtasks")
+data("empfib_GF")
+empfib_GF
+suppressPackageStartupMessages({
+library(AnVIL)
+library(rtracklayer)
+})
+avworkspace()
+ta = avtables()
+ta
+seqtab = avtable_paged(table="sequencing")
+table(seqtab$`pfb:data_type`, seqtab$`pfb:data_format`)
+table(seqtab$`pfb:data_category`, seqtab$`pfb:data_format`)
+subj = avtable(table="subject")
+table(unlist(subj$`pfb:ancestry.items`))
+if (!exists("samp")) samp = avtable_paged(table="sample") # slow
+table(samp$`pfb:tissue_type`)
+library(dplyr)
+lungsamp = samp |> dplyr::filter(`pfb:tissue_type` == "Lung")
+dim(lungsamp)
+names(lungsamp)
+intersect(names(lungsamp), names(seqtab))
+intersect(names(seqtab), names(subj))
+lungsamp$subject_id = lungsamp$`pfb:subject`$entityName
+length(intersect(lungsamp$subject_id, subj$subject_id))
+head(seqtab$`pfb:sample`)
+seqtab$sample_id = seqtab$`pfb:sample`$entityName
+length(intersect(seqtab$sample_id, samp$`sample_id`))
+lsasu = left_join(lungsamp, subj, by="subject_id")
+lsqsasu = right_join(seqtab, lsasu, by="sample_id")
+table(lsqsasu$`pfb:data_format`)
+lbw = lsqsasu |> dplyr::filter(`pfb:data_format`=="bigWig")
+dim(lbw)
+lbs_drs = lbw %>% select(`pfb:ga4gh_drs_uri`)
+head(lbs_drs,3)
+lbs_gs = drs_stat(lbs_drs[[1]]) # data.frame unwrapping
+head(lbs_gs,3)[,1:5]
+chk = lbs_gs[1,4][[1]]
+chk
+gsutil_cp(chk, Sys.getenv("WORKSPACE_BUCKET"))
+gsutil_ls(Sys.getenv("WORKSPACE_BUCKET"))
+targ = "GTEX-13X6K-1626-SM-7EWCX.Aligned.sortedByCoord.out.patched.md.bigWig"
+if (!file.exists(targ)) gsutil_cp(chk, ".")
+dir()
+library(rtracklayer)
+import(dir(patt="GTEX-")[1])
+sessionInfo()
+ls()
+empfib_GF
+colData(empfib_GF)
+names(colData(empfib_GF))
+names(colData(empfib_GF)) -> cn
+grep("emph", cn, value=TRUE)
+grep("comm", cn, value=TRUE)
+grep("emphy", colData(empfib_GF)$general_comments, value=TRUE)
+cd = colData(empfigb_GF)
+cd = colData(empfib_GF)
+head(cd$general_comments)
+grep("emphy", cd$general_comments, value=TRUE)
+grep("fibros", cd$general_comments, value=TRUE)
+grep("Smok", cd$general_comments, value=TRUE)
+ad = as.data.frame(cd)
+library(DT)
+datatable(ad)
+grep("patholog", cn, value=TRUE)
+grep("emphy", cd$pathology_notes_prc, value=TRUE)
+grep("Emphy", cd$pathology_notes_prc, value=TRUE)
+grep("[fF]ibros", cd$pathology_notes_prc, value=TRUE)
+grep("[fF]ibros|emphy", cd$pathology_notes_prc)
+head(cd$pathology_notes_prc, 25)
+dim(cd)
+cd$object_id
+retrieve_bw = function(x) { drs_stat(x)}
+cd$object_id -> oids
+retrieve_bw(oids[1])
+drs_cp
+drs_cp(oids[1], ".")
+lapply(2:20, function(x) drs_cp(oids[x], "."))
+?drs_cp
+files(empfib_GF)
+library(BiocFileCache)
+bfc = BiocFileCache()
+bfcinfo(bfc)
+tail(files(empfib_GF))
+library(BiocFileCache)
+?bfcadd
+bfcinfo()
+bb = paste0("BFC", 1:20)
+bfcremove(bfc, bb)
+bfcinfo()
+empfib_GF
+colnames(empfib_GF)
+table(table(.Last.value))
+colData(empfib_GF)$object_id
+empfibDF = as.data.frame(colData(empfib_GF))
+empfibDF[1:5,1:4]
+retrieve_and_cache = function(id, cache) {dest = tempfile(); drs_cp(id, dest); bfcadd(cache, dest, action="move")}
+retrieve_and_cache(empfibDF$object_id[1], bfc)
+empfibDF$object_id[1]
+tempfile()
+tmepdir()
+tempdir()
+retrieve_and_cache = function(id, cache) {dest = tempfile(); dir.create(dest); drs_cp(id, dest); bfcadd(cache, dir(dest, full=TRUE), action="move")}
+retrieve_and_cache(empfibDF$object_id[1], bfc)
+fix(retrieve_and_cache)
+retrieve_and_cache(empfibDF$object_id[1], bfc)
+dput(retrieve_and_cache, file="retrieve_and_cache.R")
+getwd()
+source("~/retrieve_and_cache.R")
+empfibDF$cacheid = NA
+for (i in 1:20) empfibDF$cacheid[i] = retrieve_and_cache(empfibDF$object_id[i], bfc)
+empfibDF$cacheid
+bfcinfo(bfc)$fpath
+bfcinfo(bfc)$rpath
+bfcinfo(bfc)[,"rpath"]
+bfcinfo(bfc, "BFC25")[,"rpath"]
+bfcinfo(bfc, empfibDF$cacheid)[,"rpath"]
+savehistory(file="build_cache.hist.txt")
